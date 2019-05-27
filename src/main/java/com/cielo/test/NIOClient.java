@@ -12,8 +12,8 @@ public class NIOClient {
         fastdfsClient = FastdfsClient.newBuilder().connectTimeout(3000).readTimeout(500).maxThreads(32).tracker("ws.cielosun.xyz", 22122).build();
     }
 
-    public CompletableFuture<String> upload(byte[] content) {
-        return fastdfsClient.upload("fdfs", content).thenApply(FileId::toString);
+    public CompletableFuture<FileId> upload(byte[] content) {
+        return fastdfsClient.upload("fdfs", content);
     }
 
     public CompletableFuture<byte[]> download(String path) {

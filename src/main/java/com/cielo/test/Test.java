@@ -1,7 +1,6 @@
 package com.cielo.test;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.cielo.storage.fastdfs.FileId;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,9 +10,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class Test {
-    public static Logger logger = LoggerFactory.getLogger(Test.class);
     public static final int SAMPLE_NUMBER = 10;
     public static final int SAMPLE_LENGTH = 256;
+    public static final int THREAD_NUM = 10;
     public List<byte[]> samples;
     public List<String> paths;
     public List<byte[]> results;
@@ -36,12 +35,12 @@ public class Test {
         });
     }
 
-    public List<String> nioUpload() {
-        return samples.stream().map(nioClient::upload).map(Try.of(CompletableFuture::get)).collect(Collectors.toList());
+    public List<FileId> nioUpload() {
+        return samples.parallelStream().map(nioClient::upload).map(Try.of(CompletableFuture::get)).collect(Collectors.toList());
     }
 
     public List<byte[]> nioDownload() {
-        return paths.stream().map(nioClient::download).map(Try.of(CompletableFuture::get)).collect(Collectors.toList());
+        return paths.parallelStream().map(nioClient::download).map(Try.of(CompletableFuture::get)).collect(Collectors.toList());
     }
 
     public List<String> normalUpload() {
@@ -60,17 +59,19 @@ public class Test {
         return list;
     }
 
-    public static void main(String[] args) throws Exception {
+    public static void testNio() throws Exception {
         System.out.println("nio");
         Test nioTest = new Test();
         System.out.println("sample size " + nioTest.samples.size());
-        nioTest.paths = nioTest.timeCost(nioTest::nioUpload);
+        nioTest.paths = nioTest.timeCost(nioTest::nioUpload).stream().map(FileId::toString).collect(Collectors.toList());
         System.out.println("upload time cost " + nioTest.timeCost + " ms");
         System.out.println("file id size " + nioTest.paths.size());
         nioTest.results = nioTest.timeCost(nioTest::nioDownload);
         System.out.println("download time cost " + nioTest.timeCost + " ms");
         System.out.println("result size " + nioTest.results.size());
+    }
 
+    public static void testNormal() throws Exception {
         System.out.println("normal");
         Test normalTest = new Test();
         System.out.println("sample size " + normalTest.samples.size());
@@ -80,6 +81,10 @@ public class Test {
         normalTest.results = normalTest.timeCost(normalTest::normalDownload);
         System.out.println("download time cost " + normalTest.timeCost + " ms");
         System.out.println("result size " + normalTest.results.size());
-        return;
+    }
+
+    public static void main(String[] args) throws Exception {
+        testNio();
+        testNormal();
     }
 }
