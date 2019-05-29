@@ -1,13 +1,10 @@
-package com.cielo.test;
+package com.cielo.dbs;
 
 import org.apache.commons.dbcp2.BasicDataSource;
 
-import java.lang.reflect.Proxy;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.LinkedList;
 
 public class MySQLClient {
     static final String JDBC_DRIVER = "com.mysql.jdbc.Driver";

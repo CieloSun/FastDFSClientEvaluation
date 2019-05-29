@@ -1,43 +1,38 @@
-package com.cielo.test;
+package com.cielo.tests;
 
+import com.cielo.dbs.*;
 import com.cielo.storage.fastdfs.FileId;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-public class Test {
-    public static final int SAMPLE_NUMBER = 500;
+public class ConcurrencyTest {
+    public static final int SAMPLE_NUMBER = 1000;
     public static final int SAMPLE_LENGTH = 256;
     public static final int JDBC_CONNECTION_NUM = 50;
 
     public NIOClient nioClient;
     public NormalClient normalClient;
     public MySQLClient mySQLClient;
+    public IoTDBMSClient ioTDBMSClient;
 
     public List<byte[]> samples;
     public List<String> paths;
     public List<byte[]> results;
     public long timeCost;
 
-    @FunctionalInterface
-    public interface ClientMethod<T> {
-        List<T> apply();
-    }
 
-    public Test() throws Exception {
+
+    public ConcurrencyTest() throws Exception {
         samples = new ArrayList<>();
         nioClient = new NIOClient();
         normalClient = new NormalClient();
         mySQLClient = new MySQLClient(JDBC_CONNECTION_NUM);
-        IntStream.range(0, SAMPLE_NUMBER).mapToObj(i -> new byte[SAMPLE_LENGTH]).forEach(bytes -> {
-            Arrays.fill(bytes, (byte) 0x32);
-            samples.add(bytes);
-        });
+        ioTDBMSClient = new IoTDBMSClient(1000);
+        samples = Utils.generateBytesList(SAMPLE_LENGTH, SAMPLE_NUMBER);
     }
 
     public List<FileId> nioUpload() {
@@ -66,11 +61,25 @@ public class Test {
         return res;
     }
 
+    public List<String> ioTUpload() {
+        List<String> res = new ArrayList<>();
+        samples.parallelStream().forEach(s -> {
+            String dataId = UUID.randomUUID().toString().replace("-", "");
+            ioTDBMSClient.upload(dataId, s);
+            res.add(dataId);
+        });
+        return res;
+    }
+
     public List<byte[]> mySQLDownload() {
         return paths.parallelStream().map(Try.of(mySQLClient::download)).collect(Collectors.toList());
     }
 
-    public <T> List<T> timeCost(ClientMethod<T> clientMethod) {
+    public List<byte[]> ioTDownload() {
+        return paths.parallelStream().map(ioTDBMSClient::download).map(Try.of(CompletableFuture::get)).collect(Collectors.toList());
+    }
+
+    public <T> List<T> timeCost(Utils.ClientMethod<T> clientMethod) {
         long startTime = System.currentTimeMillis();
         List<T> list = clientMethod.apply();
         long endTime = System.currentTimeMillis();
@@ -79,7 +88,7 @@ public class Test {
     }
 
     public static long[] testNio() throws Exception {
-        Test nioTest = new Test();
+        ConcurrencyTest nioTest = new ConcurrencyTest();
         nioTest.paths = nioTest.timeCost(nioTest::nioUpload).stream().map(FileId::toString).collect(Collectors.toList());
         long uploadTimeCost = nioTest.timeCost;
         nioTest.results = nioTest.timeCost(nioTest::nioDownload);
@@ -89,7 +98,7 @@ public class Test {
 
     public static void testNormal() throws Exception {
         System.out.println("normal");
-        Test normalTest = new Test();
+        ConcurrencyTest normalTest = new ConcurrencyTest();
         normalTest.paths = normalTest.timeCost(normalTest::normalUpload);
         System.out.println("upload time cost " + normalTest.timeCost + " ms");
         normalTest.results = normalTest.timeCost(normalTest::normalDownload);
@@ -97,11 +106,20 @@ public class Test {
     }
 
     public static long[] testMySQL() throws Exception {
-        Test mySQLTest = new Test();
+        ConcurrencyTest mySQLTest = new ConcurrencyTest();
         mySQLTest.paths = mySQLTest.timeCost(mySQLTest::mySQLUpload);
         long uploadTimeCost = mySQLTest.timeCost;
         mySQLTest.results = mySQLTest.timeCost(mySQLTest::mySQLDownload);
         long downloadTimeCost = mySQLTest.timeCost;
+        return new long[]{uploadTimeCost, downloadTimeCost};
+    }
+
+    public static long[] testIoT() throws Exception {
+        ConcurrencyTest ioTTest = new ConcurrencyTest();
+        ioTTest.paths = ioTTest.timeCost(ioTTest::ioTUpload);
+        long uploadTimeCost = ioTTest.timeCost;
+        ioTTest.results = ioTTest.timeCost(ioTTest::ioTDownload);
+        long downloadTimeCost = ioTTest.timeCost;
         return new long[]{uploadTimeCost, downloadTimeCost};
     }
 
@@ -113,6 +131,7 @@ public class Test {
         while (cnt-- > 0) {
             long[] longs;
             if (args[0].equals("mySQL")) longs = testMySQL();
+            else if (args[0].equals("IoT")) longs = testIoT();
             else longs = testNio();
             if (cnt < 3) {
                 uploadTimeCost += longs[0];
@@ -127,6 +146,7 @@ public class Test {
 
     public static void main(String[] args) throws Exception {
         //testNormal();
-        testAverage("mySQL");
+        //testAverage("mySQL");
+        //testAverage("IoT");
     }
 }

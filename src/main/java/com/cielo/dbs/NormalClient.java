@@ -1,4 +1,4 @@
-package com.cielo.test;
+package com.cielo.dbs;
 
 import org.csource.fastdfs.ClientGlobal;
 import org.csource.fastdfs.StorageClient;

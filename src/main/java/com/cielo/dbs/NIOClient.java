@@ -1,4 +1,4 @@
-package com.cielo.test;
+package com.cielo.dbs;
 
 import com.cielo.storage.fastdfs.FastdfsClient;
 import com.cielo.storage.fastdfs.FileId;
