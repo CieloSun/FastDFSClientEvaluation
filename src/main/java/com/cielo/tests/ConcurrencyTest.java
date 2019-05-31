@@ -65,7 +65,7 @@ public class ConcurrencyTest {
         List<String> res = new ArrayList<>();
         samples.parallelStream().forEach(s -> {
             String dataId = UUID.randomUUID().toString().replace("-", "");
-            ioTDBMSClient.upload(dataId, s);
+            ioTDBMSClient.upload(dataId, s).join();
             res.add(dataId);
         });
         return res;
@@ -79,9 +79,9 @@ public class ConcurrencyTest {
         return paths.parallelStream().map(ioTDBMSClient::download).map(Try.of(CompletableFuture::get)).collect(Collectors.toList());
     }
 
-    public <T> List<T> timeCost(Utils.ClientMethod<T> clientMethod) {
+    public <T> List<T> timeCost(Utils.ListMethod<T> listMethod) {
         long startTime = System.currentTimeMillis();
-        List<T> list = clientMethod.apply();
+        List<T> list = listMethod.apply();
         long endTime = System.currentTimeMillis();
         timeCost = endTime - startTime;
         return list;

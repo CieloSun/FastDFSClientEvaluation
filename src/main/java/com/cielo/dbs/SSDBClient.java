@@ -7,6 +7,7 @@ import org.nutz.ssdb4j.spi.SSDB;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 
 public class SSDBClient {
@@ -32,21 +33,38 @@ public class SSDBClient {
         return genericObjectPoolConfig;
     }
 
+    private String filtrateKey(Object key) {
+        if (key instanceof Integer) {
+            return String.format("%010d", key);
+        } else if (key instanceof Long) {
+            return String.format("%019d", key);
+        }
+        return (String) key;
+    }
+
     //设置一个基本类型值
     public Response set(Object key, Object val) {
-        return ssdb.set(key, val);
+        return ssdb.set(filtrateKey(key), val);
     }
 
     public Response get(Object key) {
-        return ssdb.get(key);
+        return ssdb.get(filtrateKey(key));
     }
 
-    public Map<String, String> scan(Object fromKey, Object endKey) {
-        return ssdb.scan(fromKey, endKey, scanNum).mapString();
+    public Response scan(Object fromKey, Object endKey) {
+        return ssdb.scan(filtrateKey(fromKey), filtrateKey(endKey), scanNum);
     }
 
-    public Map<String, String> scan(Object prefix) {
-        return scan(prefix, prefix + "}");
+    public Map<String, String> scanMapString(Object fromKey, Object endKey) {
+        return scan(fromKey, endKey).mapString();
+    }
+
+    public Map<String, byte[]> scanBytes(Object fromKey, Object endKey) {
+        return scan(fromKey, endKey).map().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> (byte[]) e.getValue(), (a, b) -> b));
+    }
+
+    public Map<String, String> scanMapString(Object prefix) {
+        return scanMapString(prefix, prefix + "}");
     }
 
     public List<String> scanKeys(Object prefix) {
@@ -54,35 +72,19 @@ public class SSDBClient {
     }
 
     public List<String> scanKeys(Object fromKey, Object endKey) {
-        return ssdb.keys(fromKey, endKey, scanNum).listString();
-    }
-
-    public int count(Object prefix) {
-        return scan(prefix).size();
+        return ssdb.keys(filtrateKey(fromKey), filtrateKey(endKey), scanNum).listString();
     }
 
     public Response expire(Object key, int ttl) {
-        return ssdb.expire(key, ttl);
+        return ssdb.expire(filtrateKey(key), ttl);
     }
 
     public Response del(Object key) {
-        return ssdb.del(key);
+        return ssdb.del(filtrateKey(key));
     }
 
     public boolean exists(Object key) {
-        return ssdb.exists(key).asInt() != 0;
-    }
-
-    public Response lowerBound(Object key) {
-        return ssdb.scan(key, "", 1);
-    }
-
-    public Response lowerBoundKey(Object key) {
-        return ssdb.keys(key, "", 1);
-    }
-
-    public String lowerBoundVal(Object key) {
-        return lowerBound(key).mapString().values().iterator().next();
+        return ssdb.exists(filtrateKey(key)).asInt() != 0;
     }
 
     public void flushDB() {
