@@ -9,12 +9,12 @@ import java.util.stream.IntStream;
 
 public class RangeTest {
     public static final int SAMPLE_NUMBER = 10000;
-    public static final int SAMPLE_LENGTH = 256;
+    public static final int SAMPLE_LENGTH = 1*1024;
     public List<byte[]> samples;
     private IoTDBMSClient ioTDBMSClient;
     private SSDBClient ssdbClient;
 
-    public RangeTest() {
+    public RangeTest() throws Exception {
         ioTDBMSClient = new IoTDBMSClient(1000);
         ssdbClient = new SSDBClient(SAMPLE_NUMBER * 2);
         samples = Utils.generateBytesList(SAMPLE_LENGTH, SAMPLE_NUMBER);
@@ -35,7 +35,15 @@ public class RangeTest {
         System.out.println("Finish.");
     }
 
-    public void iotTrain() {
+    public void ioTTestCompression(){
+        IntStream.range(0, SAMPLE_NUMBER).parallel().forEach(i -> ioTDBMSClient.lazyUpload(i, samples.get(i)));
+        System.out.println("Begin to test");
+        Map<Integer, byte[]> map = ioTDBMSClient.testCompression();
+        map.values().forEach(e->System.out.println(e.length));
+        System.out.println("Finish.");
+    }
+
+    public void ioTTrain() {
         IntStream.range(0, SAMPLE_NUMBER).parallel().forEach(i -> ioTDBMSClient.lazyUpload(i, samples.get(i)));
         System.out.println("Begin to generate train file");
         ioTDBMSClient.generateTrainFile();
@@ -58,39 +66,40 @@ public class RangeTest {
         return endTime - startTime;
     }
 
-    public static void preTestSSDB() {
+    public static void preTestSSDB() throws Exception {
         RangeTest rangeTest = new RangeTest();
         System.out.println("Begin to upload.");
         rangeTest.ssdbUpload();
         System.out.println("Finish the upload.");
     }
 
-    public static void testSSDB() {
+    public static void testSSDB() throws Exception {
         RangeTest rangeTest = new RangeTest();
         System.out.println(rangeTest.timeCost(rangeTest::ssdbScan));
     }
 
-    public static void preTestIoT() {
+    public static void preTestIoT() throws Exception {
         RangeTest rangeTest = new RangeTest();
         rangeTest.ioTUpload();
     }
 
-    public static void preTrainIoT() {
+    public static void preTrainIoT() throws Exception {
         RangeTest rangeTest = new RangeTest();
-        rangeTest.iotTrain();
+        rangeTest.ioTTrain();
     }
 
-    public static void testIoT() {
+    public static void testIoT() throws Exception {
         RangeTest rangeTest = new RangeTest();
         System.out.println(rangeTest.timeCost(rangeTest::ioTScan));
     }
 
-    public static void main(String[] args) {
-//        preTestSSDB();
-//        testSSDB();
-        preTestIoT();
-//       testIoT();
-
+    public static void main(String[] args) throws Exception {
+        preTestSSDB();
+        testSSDB();
+//        preTestIoT();
+//        testIoT();
+//        preTrainIoT();
+        System.out.println("Finish main");
     }
 
 

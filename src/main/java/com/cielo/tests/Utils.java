@@ -3,6 +3,7 @@ package com.cielo.tests;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -21,7 +22,7 @@ public class Utils {
         System.out.println("Start to generate random data, length " + length + ", size " + size + ".");
         List<byte[]> collect = IntStream.range(0, size).mapToObj(i -> {
             byte[] bytes = new byte[length];
-            Arrays.fill(bytes, (byte) i);
+            new Random().nextBytes(bytes);
             return bytes;
         }).collect(Collectors.toList());
         System.out.println("Finish the generation.");
