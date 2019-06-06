@@ -8,10 +8,11 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class ConcurrencyTest {
-    public static final int SAMPLE_NUMBER = 1000;
-    public static final int SAMPLE_LENGTH = 256;
+    public static final int SAMPLE_NUMBER = 10000;
+    public static final int SAMPLE_LENGTH = 16 * 1024;
     public static final int JDBC_CONNECTION_NUM = 50;
 
     public NIOClient nioClient;
@@ -23,7 +24,6 @@ public class ConcurrencyTest {
     public List<String> paths;
     public List<byte[]> results;
     public long timeCost;
-
 
 
     public ConcurrencyTest() throws Exception {
@@ -69,6 +69,14 @@ public class ConcurrencyTest {
             res.add(dataId);
         });
         return res;
+    }
+
+    public void simpleUpload() {
+        IntStream.range(0, SAMPLE_NUMBER).parallel().mapToObj(i -> ioTDBMSClient.upload(i, samples.get(i))).forEach(CompletableFuture::join);
+    }
+
+    public List<byte[]> simpleDownload() {
+        return IntStream.range(0, SAMPLE_NUMBER).parallel().mapToObj(ioTDBMSClient::download).map(CompletableFuture::join).collect(Collectors.toList());
     }
 
     public List<byte[]> mySQLDownload() {
@@ -145,8 +153,11 @@ public class ConcurrencyTest {
     }
 
     public static void main(String[] args) throws Exception {
-        //testNormal();
-        //testAverage("mySQL");
-        //testAverage("IoT");
+        System.out.println("generating");
+        ConcurrencyTest concurrencyTest = new ConcurrencyTest();
+        System.out.println("uploading");
+        concurrencyTest.simpleUpload();
+        System.out.println("downloading");
+        System.out.println(Utils.timeCost(concurrencyTest::simpleDownload));
     }
 }
